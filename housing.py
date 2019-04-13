@@ -158,7 +158,6 @@ class HousingBot(Bot):
                 if self.notify:
                     attachment = self.format_attachment(listing)
                     message = self.slack.send_message_to_channel(attachments=attachment)
-                    print(message)
                     reply = self.generate_reply(listing)
                     self.slack.send_message_to_channel(message=reply, thread_ts=message['ts'])
 
