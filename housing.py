@@ -60,9 +60,9 @@ class CraigslistHousingCustom(CraigslistHousing):
             time = element.select('time')[0]
             datetime = time['datetime']
             date = parser.parse(datetime)
-            if index == self.posting.postedbottom:
+            if index == self.posting.postedbottom.value:
                 result['posted'] = date
-            if index == self.posting.updated:
+            if index == self.posting.updated.value:
                 result['updated'] = date
     
     def parse_images(self, result, detail_soup):
@@ -81,18 +81,18 @@ class CraigslistHousingCustom(CraigslistHousing):
         lat_long_address = detail_soup.select('p.mapaddress')
         if lat_long_address:
             map_link = lat_long_address[0].select('a')[0]
-            self.get_gmaps_link(result, map_link['href'])
+            self.parse_gmaps_link(result, map_link['href'])
 
     def parse_data_accuracy(self, result, detail_soup):
         map = detail_soup.find('div', {'id': 'map'})
         if map:
             result['map_accuracy'] = int(map.attrs['data-accuracy'])
         
-    def get_gmaps_link(self, result, link):
+    def parse_gmaps_link(self, result, link):
         last_slash = link.rfind('/')
         remaining = link[last_slash+1:]
 
-        if "?" in remaining:
+        if '?' in remaining:
             parsedurl = urlparse.urlparse(link)
             query = urlparse.parse_qs(parsedurl.query)
             result['gaddress'] = query['q'][0]
@@ -149,7 +149,7 @@ class HousingBot(Bot):
         self.db.close()
 
     def fetch_housing(self):
-        housing_query = CraigslistHousingCustom(site='sfbay', area='sby', category="apa", filters=self.filters)
+        housing_query = CraigslistHousingCustom(site='sfbay', area='sby', category='apa', filters=self.filters)
 
         for listing in housing_query.get_results(sort_by='newest', geotagged=True):
             if self.is_new_housing(listing):
@@ -176,7 +176,10 @@ class HousingBot(Bot):
         self.db.insert_housing_listing(row)
 
     def format_message(self, listing):
-        return f"{listing['name']} - {listing['price']}: {listing['url']}"
+        name = listing['name']
+        price = listing['price']
+        url = listing['url']
+        return f'{name} - {price}: {url}'
 
     def listing_color(self, listing):
         colors = {
@@ -243,7 +246,7 @@ class HousingBot(Bot):
     def listing_area(self, listing):
         if listing['area']:
             return listing['area'][:-3]
-        return "N/A"
+        return 'N/A'
 
     def create_map_url(self, listing):
         if not listing['gaddress'] and not listing['geotag']:
@@ -290,10 +293,12 @@ class HousingBot(Bot):
             return None
 
         if listing['gaddress'] and listing['map_accuracy'] <= 10:
-            return listing["gaddress"].title()
+            return listing['gaddress'].title()
 
         if listing['geotag']:
-            return f'(latitude: {listing["geotag"][0]}, longitude: {listing["geotag"][1]})'
+            latitude = listing['geotag'][0]
+            longitude = listing['geotag'][1]
+            return f'(latitude: {latitude}, longitude: {longitude})'
 
     def generate_reply(self, listing):
         day = datetime.datetime.now(tz=self.timezone).strftime('%A')
@@ -304,9 +309,9 @@ class HousingBot(Bot):
         template = template.replace('{{day}}', day)
         template = template.replace('{{listing_url}}', listing_url)
         template = template.replace('{{friends_count}}', friends_count)
-        template = template.replace('{{n}}', "\n")
+        template = template.replace('{{n}}', '\n')
 
-        return "``` \n" + template + "\n ```"
+        return f'``` \n{template}\n ```'
 
 
     def format_attachment(self, listing):
@@ -349,7 +354,7 @@ class HousingBot(Bot):
                 },
                 {
                     'title': 'Posted',
-                    'value': listing['posted'].strftime("%b %d %I:%M %p %Z"),
+                    'value': listing['posted'].strftime('%b %d %I:%M %p %Z'),
                     'short': True
                 }
             ],
@@ -406,7 +411,7 @@ class SQL(object):
 
     def count_by_craigslist_id_or_name(self, craigslist_id, name):
         cursor = self.connection.cursor()
-        cursor.execute("SELECT COUNT(rowid) FROM craigslist_housing WHERE craigslist_id = ? OR name = ?", (craigslist_id, name,))
+        cursor.execute('SELECT COUNT(rowid) FROM craigslist_housing WHERE craigslist_id = ? OR name = ?', (craigslist_id, name,))
         count = cursor.fetchone()[0]
         logging.debug(f'Count for ID = {craigslist_id} OR name = {name}: {count}')
         return count
@@ -420,7 +425,7 @@ class SQL(object):
         return cursor.lastrowid
  
 @click.command()
-@click.option('--log-level', default="INFO")
+@click.option('--log-level', default='INFO')
 @click.option('--notify/--no-notify', default=True)
 
 def main(log_level, notify):

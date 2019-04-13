@@ -1,18 +1,15 @@
 from bs4 import BeautifulSoup
 from enum import IntEnum
-from datetime import datetime as _datetime, timedelta
+from bot import Bot
 from pytz import timezone
-from common import Bot
 
-import pytz
-import yaml
 import requests
 import datetime
 import os
-import traceback
-import logging
 import click
 import sqlite3
+import traceback
+import logging
 
 class DinnerBot(Bot):
 
@@ -48,7 +45,7 @@ class DinnerBot(Bot):
         logging.info(f'Fetching dinner menu for {date}: started')
 
         if date.weekday() >= self.weekdays.friday.value:
-            logging.info("Not Mon-Thurs, not scraping")
+            logging.info('Not Mon-Thurs, not scraping')
             exit(0)
 
         self.fetch_menu(date)
@@ -57,8 +54,8 @@ class DinnerBot(Bot):
 
 
     def fetch_menu(self, date):
-        date_text = date.strftime("%Y-%m-%d")
-        url = f"https://linkedin.cafebonappetit.com/cafe/mezzo/"
+        date_text = date.strftime('%Y-%m-%d')
+        url = 'https://linkedin.cafebonappetit.com/cafe/mezzo/'
         logging.debug(f'Fetching dinner menu for: {url}')
 
         try:
@@ -73,7 +70,7 @@ class DinnerBot(Bot):
         self.parse_menu(response.text, date)
 
     def parse_menu(self, menu_response, date):
-        soup = BeautifulSoup(menu_response, "html.parser")
+        soup = BeautifulSoup(menu_response, 'html.parser')
 
         dinner_element = soup.select('#dinner')[0]
         content = dinner_element.select('div.site-panel__daypart-tab-content-inner')[0]
@@ -87,21 +84,21 @@ class DinnerBot(Bot):
                 headerCount += 1
             elif child.name == 'div':
                 header = child.select('header')[0]
-                item = (" ".join(header.get_text().lower().split()))
+                item = (' '.join(header.get_text().lower().split()))
                 menu_items.append(item)
 
         message = self.format_menu_items(menu_items)
         self.slack.send_message_to_channel(message)
 
     def format_menu_items(self, menu_items):
-        menu = f"Dinner menu for Mezzo today ({self.date()}): \n```"
+        menu = f'Dinner menu for Mezzo today ({self.date()}): \n```'
         for menu_item in menu_items:
-            menu += ' - ' + menu_item.title() + "\n"
+            menu += f' - {menu_item.title()}\n'
         menu += '```'
         return menu
 
 @click.command()
-@click.option('--log-level', default="INFO")
+@click.option('--log-level', default='INFO')
 
 def main(log_level):
     dinner_bot = DinnerBot(log_level=log_level)
