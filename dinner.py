@@ -1,6 +1,6 @@
 from bs4 import BeautifulSoup
 from enum import IntEnum
-from bot import Bot
+from bot.bot import Bot
 from pytz import timezone
 
 import requests
@@ -91,7 +91,7 @@ class DinnerBot(Bot):
         self.slack.send_message_to_channel(message)
 
     def format_menu_items(self, menu_items):
-        menu = f'Dinner menu for Mezzo today ({self.date()}): \n```'
+        menu = f'Dinner menu for Mezzo today ({self.today_date()}): \n```'
         for menu_item in menu_items:
             menu += f' - {menu_item.title()}\n'
         menu += '```'

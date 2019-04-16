@@ -27,7 +27,9 @@ class Bot():
             logging.error(f'Failed to parse required keys from config file')
             exit(1)
 
+        logging.info('Running bot')
         self.run()
+        logging.info('Finished bot')
     
     def default_file(self, extension):
         base_path = os.path.dirname(os.path.realpath(__file__))

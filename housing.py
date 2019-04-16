@@ -1,7 +1,7 @@
 from craigslist import CraigslistHousing, requests_get, bs, RESULTS_PER_REQUEST
 from urllib.parse import urljoin
 
-from common import Bot
+from bot.bot import Bot
 from sqlite3 import Error
 from dateutil import parser
 from enum import IntEnum
@@ -149,17 +149,26 @@ class HousingBot(Bot):
         self.db.close()
 
     def fetch_housing(self):
+        logging.info('Fetching craigslist housing')
         housing_query = CraigslistHousingCustom(site='sfbay', area='sby', category='apa', filters=self.filters)
-
+    
         for listing in housing_query.get_results(sort_by='newest', geotagged=True):
             if self.is_new_housing(listing):
+                url = listing['url']
+                logging.info(f'Found new craigslist house: {url}')
+
                 self.fetch_more_details(housing_query, listing)
+                logging.info('Fetched more details about the house')
+
                 self.insert_housing(listing)
+                logging.info('Inserted house into database')
+
                 if self.notify:
                     attachment = self.format_attachment(listing)
                     message = self.slack.send_message_to_channel(attachments=attachment)
                     reply = self.generate_reply(listing)
-                    self.slack.send_message_to_channel(message=reply, thread_ts=message['ts'])
+                    slack_message = self.slack.send_message_to_channel(message=reply, thread_ts=message['ts'])
+                    logging.info(f'Notified slack channel of listing')
 
     def fetch_more_details(self, housing_query, result):
         detail_soup = housing_query.fetch_content(result['url'])
@@ -391,6 +400,7 @@ class SQL(object):
 
     def open(self):
         try:
+            logging.debug(f'Trying to create connection from file: {self.db_file}')
             self.connection = sqlite3.connect(self.db_file)
             logging.debug(f'Created connection: {self.connection}')
         except Error as e:

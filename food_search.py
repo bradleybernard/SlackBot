@@ -1,7 +1,7 @@
 from bs4 import BeautifulSoup
 from enum import IntEnum
 from pytz import timezone
-from bot import Bot
+from bot.bot import Bot
 
 import requests
 import datetime
@@ -36,10 +36,10 @@ class FoodBot(Bot):
         return self.food_searches
 
     def run(self):
-        # self.fetch_tomorrows_menu()
-        start = datetime.datetime.strptime('2019-04-04', '%Y-%m-%d')
-        end = datetime.datetime.strptime('2019-04-23', '%Y-%m-%d')
-        self.fetch_menu_date_range(start, end)
+        self.fetch_tomorrows_menu()
+        # start = datetime.datetime.strptime('2019-04-04', '%Y-%m-%d')
+        # end = datetime.datetime.strptime('2019-04-23', '%Y-%m-%d')
+        # self.fetch_menu_date_range(start, end)
 
     def fetch_tomorrows_menu(self):
         tz = timezone('US/Pacific')
