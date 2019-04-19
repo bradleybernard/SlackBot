@@ -13,15 +13,7 @@ import logging
 
 class DinnerBot(Bot):
 
-    cafes = {
-        '605': 'brick-mortar',
-        '580': 'cafe-elevate',
-        '700': 'mezzo',
-        '950': 'journey'
-    }
-
     headers = {'User-Agent': 'Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:52.0) Gecko/20100101 Firefox/52.0'}
-
     meals = IntEnum('meals', 'breakfast lunch dinner', start=0)
     weekdays = IntEnum('weekdays', 'monday tuesday wednesday thursday friday saturday sunday', start=0)
 

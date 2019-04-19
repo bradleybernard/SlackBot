@@ -1,4 +1,4 @@
-from craigslist import CraigslistHousing, requests_get, bs, RESULTS_PER_REQUEST
+from craigslist import CraigslistHousing, requests_get, bs, RESULTS_PER_REQUEST, CraigslistBase
 from urllib.parse import urljoin
 
 from bot.bot import Bot
@@ -17,6 +17,13 @@ import os
 import json
 import math
 import urllib.parse as urlparse
+
+# Override to use https
+CraigslistBase.url_templates = url_templates = {
+    'base': 'https://%(site)s.craigslist.org',
+    'no_area': 'https://%(site)s.craigslist.org/search/%(category)s',
+    'area': 'https://%(site)s.craigslist.org/search/%(area)s/%(category)s'
+}
 
 class CraigslistHousingCustom(CraigslistHousing):
 
@@ -150,9 +157,9 @@ class HousingBot(Bot):
 
     def fetch_housing(self):
         logging.info('Fetching craigslist housing')
-        housing_query = CraigslistHousingCustom(site='sfbay', area='sby', category='apa', filters=self.filters)
+        housing_query = CraigslistHousingCustom(site='sfbay', area='sby', category='apa', filters=self.filters, log_level=logging.INFO)
     
-        for listing in housing_query.get_results(sort_by='newest', geotagged=True):
+        for listing in housing_query.get_results(sort_by='newest', geotagged=False, include_details=False):
             if self.is_new_housing(listing):
                 url = listing['url']
                 logging.info(f'Found new craigslist house: {url}')

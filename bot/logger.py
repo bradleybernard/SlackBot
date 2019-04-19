@@ -24,4 +24,4 @@ class Logger():
         logger.setLevel(self.log_level)
         logger.addHandler(handler)
 
-        logging.debug(f'Loging to file: {self.log_file}')
+        logging.debug(f'Logging to file: {self.log_file}')
