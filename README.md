@@ -40,7 +40,7 @@ class SampleBot(Bot):
 @click.option('--log-level', default='INFO')
 
 def main(log_level):
-    dinner_bot = SampleBot(log_level=log_level)
+    sample_bot = SampleBot(log_level=log_level)
 
 if __name__ == '__main__':
     main()
@@ -56,6 +56,9 @@ slack:
   username: SampleBot
   icon_url: https://google.com/images/botImage
 ```
+
+# Run
+`$ python3 sample_bot.py --log-level 'DEBUG'`
 
 # Lifecycle
 `Bot` class:
