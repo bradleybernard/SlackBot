@@ -191,10 +191,11 @@ class HousingBot(Bot):
         self.db.insert_housing_listing(row)
 
     def format_message(self, listing):
+        color = self.listing_color_name(listing)
         name = listing['name']
         price = listing['price']
         url = listing['url']
-        return f'{name} - {price}: {url}'
+        return f'[{color}] {name} - {price}: {url}'
 
     def listing_color(self, listing):
         colors = {
