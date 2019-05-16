@@ -16,7 +16,9 @@ import time
 import os
 import json
 import math
+import requests
 import urllib.parse as urlparse
+import dateparser
 
 # Override to use https
 CraigslistBase.url_templates = url_templates = {
@@ -42,6 +44,7 @@ class CraigslistHousingCustom(CraigslistHousing):
         self.parse_body(result, detail_soup)
         self.parse_address(result, detail_soup)
         self.parse_data_accuracy(result, detail_soup)
+        result['provider'] = 'Craigslist'
 
     def parse_rooms_and_availability(self, result, detail_soup):
         result.update({'rooms': None, 'bathrooms': None, 'availability': None})
@@ -114,17 +117,34 @@ class HousingBot(Bot):
 
     # URL: https://sfbay.craigslist.org/search/sby/apa?sort=date&hasPic=1&bundleDuplicates=1&search_distance=5&postal=94041&min_price=2000&max_price=6000&min_bedrooms=3&min_bathrooms=2&availabilityMode=0&housing_type=6&sale_date=all+dates
 
-    filters = {
-        'min_price': 2000,
-        'max_price': 6000,
-        'housing_type': ['house'],
-        'min_bedrooms': 3,
-        'min_bathrooms': 2,
-        'has_image': True,
-        'bundle_duplicates': True,
-        'zip_code': 94041,
-        'search_distance': 5
-    }
+    searches = [
+        # {
+        #     'min_price': 2500,
+        #     'max_price': 5000,
+        #     'housing_type': ['house'],
+        #     'min_bedrooms': 3,
+        #     'max_bedrooms': 3,
+        #     'min_bathrooms': 2,
+        #     'max_bathrooms': 3,
+        #     'has_image': True,
+        #     'bundle_duplicates': True,
+        #     'zip_code': 94041,
+        #     'search_distance': 5
+        # },
+        {
+            'min_price': 2500,
+            'max_price': 6000,
+            'housing_type': ['house'],
+            'min_bedrooms': 4,
+            'max_bedrooms': 4,
+            'min_bathrooms': 3,
+            'max_bathrooms': 4,
+            'has_image': True,
+            'bundle_duplicates': True,
+            'zip_code': 94041,
+            'search_distance': 5
+        },
+    ]
 
     def __init__(self, notify, db_file=None, log_file=None, log_level=None, config_file=None):
         if not db_file:
@@ -157,25 +177,134 @@ class HousingBot(Bot):
 
     def fetch_housing(self):
         logging.info('Fetching craigslist housing')
-        housing_query = CraigslistHousingCustom(site='sfbay', area='sby', category='apa', filters=self.filters, log_level=logging.INFO)
-    
-        for listing in housing_query.get_results(sort_by='newest', geotagged=False, include_details=False):
-            if self.is_new_housing(listing):
-                url = listing['url']
-                logging.info(f'Found new craigslist house: {url}')
 
-                self.fetch_more_details(housing_query, listing)
-                logging.info('Fetched more details about the house')
+        for search in self.searches:
+            housing_query = CraigslistHousingCustom(site='sfbay', area='sby', category='apa', filters=search, log_level=logging.INFO)
 
-                self.insert_housing(listing)
-                logging.info('Inserted house into database')
+            for listing in housing_query.get_results(sort_by='newest', geotagged=False, include_details=False):
+                if self.is_new_housing(listing):
+                    url = listing['url']
+                    logging.info(f'Found new craigslist house: {url}')
 
-                if self.notify:
-                    attachment = self.format_attachment(listing)
-                    message = self.slack.send_message_to_channel(attachments=attachment)
-                    reply = self.generate_reply(listing)
-                    slack_message = self.slack.send_message_to_channel(message=reply, thread_ts=message['ts'])
-                    logging.info(f'Notified slack channel of listing')
+                    self.fetch_more_details(housing_query, listing)
+                    logging.info('Fetched more details about the house')
+
+                    self.insert_housing(listing)
+                    logging.info('Inserted house into database')
+
+                    if self.notify:
+                        attachment = self.format_attachment(listing)
+                        message = self.slack.send_message_to_channel(attachments=attachment)
+                        reply = self.generate_reply(listing)
+                        slack_message = self.slack.send_message_to_channel(message=reply, thread_ts=message['ts'])
+                        logging.info(f'Notified slack channel of listing')
+
+        zillow_searches = [
+            # '{"mapBounds":{"west":-122.23936712817385,"east":-121.92007696704104,"south":37.271727792029544,"north":37.4670895562923},"usersSearchTerm":"Mountain%20View%20CA","isMapVisible":true,"mapZoom":12,"filterState":{"price":{"min":0,"max":1584322},"monthlyPayment":{"min":0,"max":6000},"beds":{"min":4,"max":4},"baths":{"min":3},"sortSelection":{"value":"days"},"isForSaleByAgent":{"value":false},"isForSaleByOwner":{"value":false},"isNewConstruction":{"value":false},"isForSaleForeclosure":{"value":false},"isComingSoon":{"value":false},"isAuction":{"value":false},"isPreMarketForeclosure":{"value":false},"isPreMarketPreForeclosure":{"value":false},"isMakeMeMove":{"value":false},"isForRent":{"value":true},"isCondo":{"value":false},"isMultiFamily":{"value":false}},"isListVisible":true,"customRegionId":"a62435cef6X1-CR1quirpnw7m35q_11owyr"}'
+            '{"mapBounds":{"west":-122.20709478930667,"east":-121.88780462817385,"south":37.27609897350297,"north":37.471449369286226},"usersSearchTerm":"Mountain View CA","isMapVisible":true,"mapZoom":12,"filterState":{"price":{"min":0,"max":1584322},"monthlyPayment":{"min":0,"max":6000},"beds":{"min":4,"max":4},"baths":{"min":3},"sortSelection":{"value":"days"},"isForSaleByAgent":{"value":false},"isForSaleByOwner":{"value":false},"isNewConstruction":{"value":false},"isForSaleForeclosure":{"value":false},"isComingSoon":{"value":false},"isAuction":{"value":false},"isPreMarketForeclosure":{"value":false},"isPreMarketPreForeclosure":{"value":false},"isMakeMeMove":{"value":false},"isForRent":{"value":true},"isCondo":{"value":false},"isMultiFamily":{"value":false}},"isListVisible":true,"customRegionId":"96bc65cef7X1-CR1ibhyilzdzibi_vx0sv"}'
+        ]
+
+        for zillow_search in zillow_searches:
+            results = self.fetch_zillow_housing(zillow_search)
+
+            for listing in results:
+                if self.is_new_housing(listing):
+                    url = listing['url']
+                    logging.info(f'Found new zillow house: {url}')
+
+                    self.fetch_zillow_housing_details(listing)
+                    logging.info('Fetched more details about the house')
+
+                    self.insert_housing(listing)
+                    logging.info('Inserted house into database')
+
+                    if self.notify:
+                        attachment = self.format_attachment(listing)
+                        message = self.slack.send_message_to_channel(attachments=attachment)
+                        reply = self.generate_reply(listing)
+                        slack_message = self.slack.send_message_to_channel(message=reply, thread_ts=message['ts'])
+                        logging.info(f'Notified slack channel of listing')
+        
+    def fetch_zillow_housing(self, query):
+        url = 'https://www.zillow.com/search/GetSearchPageState.htm'
+        params = {
+            'searchQueryState': query,
+            'includeMap': 'false',
+            'includeList': 'true'
+        }
+
+        headers = {
+            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3',
+            'Accept-Encoding': 'gzip, deflate, br',
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/74.0.3729.169 Safari/537.36',
+            'Accept-Language': 'en-US,en;q=0.9',
+            'Cache-Control': 'no-cache',
+            'Pragma': 'no-cache',
+            'Accept-Encoding': 'gzip, deflate, br',
+            'Referrer': 'https://www.zillow.com/homes/?searchQueryState={%22mapBounds%22:{%22west%22:-122.21854364648436,%22east%22:-121.89925348535155,%22south%22:37.268739809818555,%22north%22:37.46410934451267},%22usersSearchTerm%22:%2294040%22,%22isMapVisible%22:true,%22mapZoom%22:12,%22filterState%22:{%22price%22:{%22min%22:0,%22max%22:1584707},%22monthlyPayment%22:{%22min%22:0,%22max%22:6000},%22beds%22:{%22min%22:4,%22max%22:4},%22baths%22:{%22min%22:2},%22sortSelection%22:{%22value%22:%22days%22},%22isForSaleByAgent%22:{%22value%22:false},%22isForSaleByOwner%22:{%22value%22:false},%22isNewConstruction%22:{%22value%22:false},%22isForSaleForeclosure%22:{%22value%22:false},%22isComingSoon%22:{%22value%22:false},%22isAuction%22:{%22value%22:false},%22isPreMarketForeclosure%22:{%22value%22:false},%22isPreMarketPreForeclosure%22:{%22value%22:false},%22isMakeMeMove%22:{%22value%22:false},%22isForRent%22:{%22value%22:true},%22isCondo%22:{%22value%22:false},%22isMultiFamily%22:{%22value%22:false}},%22isListVisible%22:true,%22pagination%22:{%22currentPage%22:2}}',
+        }
+
+        response = requests.get(url=url, params=params, headers=headers)
+        json = response.json()
+
+        listings = []
+        for entry in json['searchResults']['listResults']:
+            listings.append({
+                'id': entry['zpid'],
+                'name': entry['statusText'] + ' - ' + entry['address'],
+                'price': entry['price'],
+                'bedrooms': entry['beds'],
+                'bathrooms': entry['baths'],
+                'gaddress': entry['addressWithZip'],
+                'area': str(entry['area']),
+                'url': entry['detailUrl'],
+                'map_accuracy': 0,
+                'rooms': f"{entry['beds']}BR / {entry['baths']}Ba",
+                'provider': 'Zillow'
+            })
+
+        return listings
+
+    def fetch_zillow_housing_details(self, listing):
+        url = 'https://www.zillow.com/graphql/'
+        payload = '{"operationName":"ForRentDoubleScrollFullRenderQuery","variables":{"zpid":' + listing['id'] + ',"contactFormRenderParameter":{"zpid":19596588,"platform":"desktop","isDoubleScroll":true}},"clientVersion":"home-details/5.44.1.0.0.hotfix-2019-5-28.59e2dc6","queryId":"0b39af348a5c57b66a90385dad30bcab"}'
+        
+        headers = {
+            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3',
+            'Accept-Encoding': 'gzip, deflate, br',
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/74.0.3729.169 Safari/537.36',
+            'Accept-Language': 'en-US,en;q=0.9',
+            'Content-Type': 'text/plain',
+            'Cache-Control': 'no-cache',
+            'Pragma': 'no-cache',
+            'Accept-Encoding': 'gzip, deflate, br',
+            'Referrer': 'https://www.zillow.com/homes/?searchQueryState={%22mapBounds%22:{%22west%22:-122.21854364648436,%22east%22:-121.89925348535155,%22south%22:37.268739809818555,%22north%22:37.46410934451267},%22usersSearchTerm%22:%2294040%22,%22isMapVisible%22:true,%22mapZoom%22:12,%22filterState%22:{%22price%22:{%22min%22:0,%22max%22:1584707},%22monthlyPayment%22:{%22min%22:0,%22max%22:6000},%22beds%22:{%22min%22:4,%22max%22:4},%22baths%22:{%22min%22:2},%22sortSelection%22:{%22value%22:%22days%22},%22isForSaleByAgent%22:{%22value%22:false},%22isForSaleByOwner%22:{%22value%22:false},%22isNewConstruction%22:{%22value%22:false},%22isForSaleForeclosure%22:{%22value%22:false},%22isComingSoon%22:{%22value%22:false},%22isAuction%22:{%22value%22:false},%22isPreMarketForeclosure%22:{%22value%22:false},%22isPreMarketPreForeclosure%22:{%22value%22:false},%22isMakeMeMove%22:{%22value%22:false},%22isForRent%22:{%22value%22:true},%22isCondo%22:{%22value%22:false},%22isMultiFamily%22:{%22value%22:false}},%22isListVisible%22:true,%22pagination%22:{%22currentPage%22:2}}',
+        }
+
+        response = requests.post(url=url, data=payload, headers=headers)
+        json = response.json()
+
+        for fact in json['data']['property']['homeFacts']['atAGlanceFacts']:
+            if fact['factLabel'] == 'Date available' and fact['factValue']:
+                listing['availability'] = dateparser.parse(str(fact['factValue']))
+            
+        for category in json['data']['property']['homeFacts']['categoryDetails']:
+            if category['categoryGroupName'] == 'Rental Facts':
+                category = category['categories'][0]
+                for fact in category['categoryFacts']:
+                    # print(fact['factLabel'])
+                    if fact['factLabel'] == 'Posted':
+                        listing['posted'] = dateparser.parse(fact['factValue'])
+                    # if fact['factLabel'] == 'Date available':
+                    #     print("NAH HREER")
+                    #     pass
+                    #     # print(fact['factValue'])
+                    #     # print(dateparser.parse(fact['factValue']))
+                    #     # listing['availability'] = dateparser.parse(fact['factValue'])
+        
+        listing['body'] = json['data']['property']['description']
+        listing['image'] = json['data']['property']['desktopWebHdpImageLink']
+        listing['where'] = json['data']['property']['city']
 
     def fetch_more_details(self, housing_query, result):
         detail_soup = housing_query.fetch_content(result['url'])
@@ -209,9 +338,9 @@ class HousingBot(Bot):
 
         if price_per_person < 0:
             return colors['unknown']
-        elif price_per_person > 700 and price_per_person <= 1200:
+        elif price_per_person > 700 and price_per_person <= 1300:
             return colors['green']
-        elif price_per_person > 1200 and price_per_person <= 1500:
+        elif price_per_person > 1300 and price_per_person <= 1600:
             return colors['orange']
         else:
             return colors['red']
@@ -220,16 +349,19 @@ class HousingBot(Bot):
         price_per_person = self.price_per_person(listing)
 
         if price_per_person < 0:
-            return 'Unknown'
-        elif price_per_person > 700 and price_per_person <= 1200:
-            return 'Green'
-        elif price_per_person > 1200 and price_per_person <= 1500:
-            return 'Orange'
+            return '?'
+        elif price_per_person > 700 and price_per_person <= 1300:
+            return '$'
+        elif price_per_person > 1300 and price_per_person <= 1600:
+            return '$$'
         else:
-            return 'Red'
+            return '$$$'
 
     def price_per_person(self, listing):
-        price = float(listing['price'][1:])
+        if '/mo' in listing['price']:
+            price = float(listing['price'][1:-3].replace(',',''))
+        else:
+            price = float(listing['price'][1:])
         bedrooms = float(listing['bedrooms'])
         bathrooms = float(listing['bathrooms'])
 
@@ -241,18 +373,21 @@ class HousingBot(Bot):
         return (price / ((0.7 * bedrooms) + (0.3 * bathrooms)))
     
     def listing_insert_time(self, listing):
-        return int(parser.parse(listing['datetime']).timestamp())
+        if 'datetime' in listing:
+            return int(parser.parse(listing['datetime']).timestamp())
+        return 1559197920
+        # return None
 
     def listing_time(self, listing):
-        if listing['updated']:
+        if 'updated' in listing and listing['updated']:
             return int(listing['updated'].timestamp())
-        elif listing['posted']:
+        elif 'posted' in listing and listing['posted']:
             return int(listing['posted'].timestamp())
         else:
             return 'N/A'
         
     def listing_availability(self, listing):
-        if listing['availability']:
+        if 'availability' in listing and listing['availability']:
             if listing['availability'] <= datetime.datetime.now():
                 return 'Now'
             else:
@@ -261,7 +396,10 @@ class HousingBot(Bot):
 
     def listing_area(self, listing):
         if listing['area']:
-            return listing['area'][:-3]
+            if 'sq' in listing['area']:
+                return listing['area'][:-3]
+            else:
+                return listing['area']
         return 'N/A'
 
     def create_map_url(self, listing):
@@ -324,20 +462,19 @@ class HousingBot(Bot):
         template = self.template
         template = template.replace('{{day}}', day)
         template = template.replace('{{listing_url}}', listing_url)
-        template = template.replace('{{friends_count}}', friends_count)
+        template = template.replace('{{friends_count}}', str(friends_count))
         template = template.replace('{{n}}', '\n')
 
         return f'``` \n{template}\n ```'
 
 
     def format_attachment(self, listing):
-
         map_url = self.create_map_url(listing)
 
         attachments = [{
-            'fallback': self.format_message(listing),
+            'fallback': self.format_message(listing) + ' - ' + listing['provider'],
             'color': self.listing_color(listing),
-            'title': '[' + self.listing_color_name(listing) + '] ' + listing['name'],
+            'title': '[' + self.listing_color_name(listing) + '] ' + listing['name'] + ' - ' + listing['provider'],
             'title_link': listing['url'],
             'image_url': listing['image'],
             'text': listing['body'],
@@ -372,10 +509,8 @@ class HousingBot(Bot):
                     'title': 'Posted',
                     'value': listing['posted'].strftime('%b %d %I:%M %p %Z'),
                     'short': True
-                }
+                },
             ],
-            'footer': 'Craigslist Search',
-            'footer_icon': 'http://files.softicons.com/download/social-media-icons/colored-pen-web-icons-by-iconexpo.com/png/256/craigslist-pen.png',
             'ts': self.listing_time(listing)
         }]
 
@@ -397,7 +532,7 @@ class SQL(object):
             craigslist_id TEXT NOT NULL,
             name TEXT NOT NULL,
             url TEXT NOT NULL,
-            craigslist_date INTEGER NOT NULL,
+            craigslist_date INTEGER NULL,
             created_at INTEGER NOT NULL,
             UNIQUE (craigslist_id)
         );

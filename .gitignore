@@ -1,6 +1,9 @@
 # Mac
 .DS_Store
 
+# Custom
+dinner_client.py
+
 # SQLite DBs
 *.db
 

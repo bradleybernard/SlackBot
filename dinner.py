@@ -3,6 +3,7 @@ from enum import IntEnum
 from bot.bot import Bot
 from pytz import timezone
 
+from dinner_client import CafeClient
 import requests
 import datetime
 import os
@@ -13,8 +14,6 @@ import logging
 
 class DinnerBot(Bot):
 
-    headers = {'User-Agent': 'Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:52.0) Gecko/20100101 Firefox/52.0'}
-    meals = IntEnum('meals', 'breakfast lunch dinner', start=0)
     weekdays = IntEnum('weekdays', 'monday tuesday wednesday thursday friday saturday sunday', start=0)
 
     def __init__(self, log_file=None, log_level=None, config_file=None):
@@ -46,48 +45,29 @@ class DinnerBot(Bot):
 
 
     def fetch_menu(self, date):
-        date_text = date.strftime('%Y-%m-%d')
-        url = 'https://linkedin.cafebonappetit.com/cafe/mezzo/'
-        logging.debug(f'Fetching dinner menu for: {url}')
+        MEZZOS = '1623'
+        cafe = CafeClient(MEZZOS)
 
-        try:
-            response = requests.get(url, headers=self.headers)
-        except requests.exceptions.RequestException as e:
-            logging.error(e)
-            exit(1)
-        except Exception as e:
-            logging.error(traceback.format_exc())
-            exit(1)
-
-        self.parse_menu(response.text, date)
-
-    def parse_menu(self, menu_response, date):
-        soup = BeautifulSoup(menu_response, 'html.parser')
-
-        dinner_element = soup.select('#dinner')[0]
-        content = dinner_element.select('div.site-panel__daypart-tab-content-inner')[0]
-        headerCount = 0
-
-        menu_items = []
-        for child in content.children:
-            if headerCount == 2:
-                break
-            if child.name == 'h3':
-                headerCount += 1
-            elif child.name == 'div':
-                header = child.select('header')[0]
-                item = (' '.join(header.get_text().lower().split()))
-                menu_items.append(item)
-
-        message = self.format_menu_items(menu_items)
+        message = self.format_menu_items(cafe.get_dinner())
         self.slack.send_message_to_channel(message)
-
+    
     def format_menu_items(self, menu_items):
-        menu = f'Dinner menu for Mezzo today ({self.today_date()}): \n```'
+        menu = f'Dinner menu for Mezzo today ({self.today_date()}): {self.url}\n'
+        
         for menu_item in menu_items:
-            menu += f' - {menu_item.title()}\n'
-        menu += '```'
+            menu += f' - *{self.capitalized(menu_item["label"])}*'
+
+            if 'station' in menu_item and menu_item['station']:
+                menu += f' - {self.capitalized(menu_item["station"])}'
+            menu += '\n'
+            if 'description' in menu_item and menu_item['description']:
+                menu += f'{menu_item["description"]}\n'
+            menu += '\n'
+        menu += ''
         return menu
+    
+    def capitalized(self, sentence):
+        return ' '.join(word[0].upper() + word[1:] for word in sentence.split())
 
 @click.command()
 @click.option('--log-level', default='INFO')
