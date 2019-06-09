@@ -115,22 +115,7 @@ class CraigslistHousingCustom(CraigslistHousing):
 
 class HousingBot(Bot):
 
-    # URL: https://sfbay.craigslist.org/search/sby/apa?sort=date&hasPic=1&bundleDuplicates=1&search_distance=5&postal=94041&min_price=2000&max_price=6000&min_bedrooms=3&min_bathrooms=2&availabilityMode=0&housing_type=6&sale_date=all+dates
-
     searches = [
-        # {
-        #     'min_price': 2500,
-        #     'max_price': 5000,
-        #     'housing_type': ['house'],
-        #     'min_bedrooms': 3,
-        #     'max_bedrooms': 3,
-        #     'min_bathrooms': 2,
-        #     'max_bathrooms': 3,
-        #     'has_image': True,
-        #     'bundle_duplicates': True,
-        #     'zip_code': 94041,
-        #     'search_distance': 5
-        # },
         {
             'min_price': 2500,
             'max_price': 6000,
@@ -200,7 +185,6 @@ class HousingBot(Bot):
                         logging.info(f'Notified slack channel of listing')
 
         zillow_searches = [
-            # '{"mapBounds":{"west":-122.23936712817385,"east":-121.92007696704104,"south":37.271727792029544,"north":37.4670895562923},"usersSearchTerm":"Mountain%20View%20CA","isMapVisible":true,"mapZoom":12,"filterState":{"price":{"min":0,"max":1584322},"monthlyPayment":{"min":0,"max":6000},"beds":{"min":4,"max":4},"baths":{"min":3},"sortSelection":{"value":"days"},"isForSaleByAgent":{"value":false},"isForSaleByOwner":{"value":false},"isNewConstruction":{"value":false},"isForSaleForeclosure":{"value":false},"isComingSoon":{"value":false},"isAuction":{"value":false},"isPreMarketForeclosure":{"value":false},"isPreMarketPreForeclosure":{"value":false},"isMakeMeMove":{"value":false},"isForRent":{"value":true},"isCondo":{"value":false},"isMultiFamily":{"value":false}},"isListVisible":true,"customRegionId":"a62435cef6X1-CR1quirpnw7m35q_11owyr"}'
             '{"mapBounds":{"west":-122.20709478930667,"east":-121.88780462817385,"south":37.27609897350297,"north":37.471449369286226},"usersSearchTerm":"Mountain View CA","isMapVisible":true,"mapZoom":12,"filterState":{"price":{"min":0,"max":1584322},"monthlyPayment":{"min":0,"max":6000},"beds":{"min":4,"max":4},"baths":{"min":3},"sortSelection":{"value":"days"},"isForSaleByAgent":{"value":false},"isForSaleByOwner":{"value":false},"isNewConstruction":{"value":false},"isForSaleForeclosure":{"value":false},"isComingSoon":{"value":false},"isAuction":{"value":false},"isPreMarketForeclosure":{"value":false},"isPreMarketPreForeclosure":{"value":false},"isMakeMeMove":{"value":false},"isForRent":{"value":true},"isCondo":{"value":false},"isMultiFamily":{"value":false}},"isListVisible":true,"customRegionId":"96bc65cef7X1-CR1ibhyilzdzibi_vx0sv"}'
         ]
 
@@ -292,15 +276,8 @@ class HousingBot(Bot):
             if category['categoryGroupName'] == 'Rental Facts':
                 category = category['categories'][0]
                 for fact in category['categoryFacts']:
-                    # print(fact['factLabel'])
                     if fact['factLabel'] == 'Posted':
                         listing['posted'] = dateparser.parse(fact['factValue'])
-                    # if fact['factLabel'] == 'Date available':
-                    #     print("NAH HREER")
-                    #     pass
-                    #     # print(fact['factValue'])
-                    #     # print(dateparser.parse(fact['factValue']))
-                    #     # listing['availability'] = dateparser.parse(fact['factValue'])
         
         listing['body'] = json['data']['property']['description']
         listing['image'] = json['data']['property']['desktopWebHdpImageLink']
@@ -312,8 +289,7 @@ class HousingBot(Bot):
         housing_query.geotag_result(result, detail_soup)
 
     def is_new_housing(self, listing):
-        # return self.db.count_by_craigslist_id_or_name(craigslist_id=listing['id'], name=listing['name']) == 0
-        return self.db.count_by_craigslist_id_or_name(craigslist_id=listing['id'], name='poop') == 0
+        return self.db.count_by_craigslist_id(craigslist_id=listing['id']) == 0
 
     def insert_housing(self, listing):
         row = (listing['id'], listing['name'], listing['url'], self.listing_insert_time(listing), int(time.time()))
@@ -561,11 +537,11 @@ class SQL(object):
         except Error as e:
             logging.error(e)
 
-    def count_by_craigslist_id_or_name(self, craigslist_id, name):
+    def count_by_craigslist_id(self, craigslist_id):
         cursor = self.connection.cursor()
-        cursor.execute('SELECT COUNT(rowid) FROM craigslist_housing WHERE craigslist_id = ? OR name = ?', (craigslist_id, name,))
+        cursor.execute('SELECT COUNT(rowid) FROM craigslist_housing WHERE craigslist_id = ?', (craigslist_id,))
         count = cursor.fetchone()[0]
-        logging.debug(f'Count for ID = {craigslist_id} OR name = {name}: {count}')
+        logging.debug(f'Count for ID = {craigslist_id}: {count}')
         return count
             
     def insert_housing_listing(self, listing):
