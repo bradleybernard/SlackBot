@@ -1,5 +1,4 @@
-from slackclient import SlackClient
-
+import slack
 import logging
 
 class Slack():
@@ -16,12 +15,11 @@ class Slack():
         self.setup_client()
 
     def setup_client(self):
-        self.slack_client = SlackClient(self.slack_token)
+        self.slack_client = slack.WebClient(token=self.slack_token)
         self.find_slack_channel()
 
     def find_slack_channel(self):        
-        channels = self.slack_client.api_call(
-            'conversations.list',
+        channels = self.slack_client.conversations_list(
             types='public_channel,private_channel',
             exclude_archived=1
         )
@@ -39,8 +37,7 @@ class Slack():
         logging.debug(f'Found Slack channel ID for channel: {self.slack_channel} = {self.slack_channel_id}')
 
     def send_message_to_channel(self, message=None, attachments=None, thread_ts=None):
-        post_message = self.slack_client.api_call(
-            'chat.postMessage',
+        post_message = self.slack_client.chat_postMessage(
             text=message,
             channel=self.slack_channel_id,
             as_user=False,

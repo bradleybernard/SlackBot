@@ -239,7 +239,7 @@ class HousingBot(Bot):
                 'price': entry['price'],
                 'bedrooms': entry['beds'],
                 'bathrooms': entry['baths'],
-                'gaddress': entry['addressWithZip'],
+                'gaddress': entry['address'],
                 'area': str(entry['area']),
                 'url': entry['detailUrl'],
                 'map_accuracy': 0,
@@ -268,6 +268,8 @@ class HousingBot(Bot):
         response = requests.post(url=url, data=payload, headers=headers)
         json = response.json()
 
+        listing['posted'] = 'N/A'
+
         for fact in json['data']['property']['homeFacts']['atAGlanceFacts']:
             if fact['factLabel'] == 'Date available' and fact['factValue']:
                 listing['availability'] = dateparser.parse(str(fact['factValue']))
@@ -278,6 +280,9 @@ class HousingBot(Bot):
                 for fact in category['categoryFacts']:
                     if fact['factLabel'] == 'Posted':
                         listing['posted'] = dateparser.parse(fact['factValue'])
+
+        if listing['posted'] == 'N/A':
+            listing['posted'] = dateparser.parse(json['data']['property']['timeOnZillow'])
         
         listing['body'] = json['data']['property']['description']
         listing['image'] = json['data']['property']['desktopWebHdpImageLink']
