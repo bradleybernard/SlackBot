@@ -126,8 +126,8 @@ class HousingBot(Bot):
             'max_bathrooms': 4,
             'has_image': True,
             'bundle_duplicates': True,
-            'zip_code': 94041,
-            'search_distance': 5
+            'zip_code': 94089,
+            'search_distance': 10
         },
     ]
 
@@ -188,6 +188,7 @@ class HousingBot(Bot):
             '{"mapBounds":{"west":-122.20709478930667,"east":-121.88780462817385,"south":37.27609897350297,"north":37.471449369286226},"usersSearchTerm":"Mountain View CA","isMapVisible":true,"mapZoom":12,"filterState":{"price":{"min":0,"max":1584322},"monthlyPayment":{"min":0,"max":6000},"beds":{"min":4,"max":4},"baths":{"min":3},"sortSelection":{"value":"days"},"isForSaleByAgent":{"value":false},"isForSaleByOwner":{"value":false},"isNewConstruction":{"value":false},"isForSaleForeclosure":{"value":false},"isComingSoon":{"value":false},"isAuction":{"value":false},"isPreMarketForeclosure":{"value":false},"isPreMarketPreForeclosure":{"value":false},"isMakeMeMove":{"value":false},"isForRent":{"value":true},"isCondo":{"value":false},"isMultiFamily":{"value":false}},"isListVisible":true,"customRegionId":"96bc65cef7X1-CR1ibhyilzdzibi_vx0sv"}'
         ]
 
+        logging.info('Fetching zillow housing')
         for zillow_search in zillow_searches:
             results = self.fetch_zillow_housing(zillow_search)
 
@@ -272,7 +273,10 @@ class HousingBot(Bot):
 
         for fact in json['data']['property']['homeFacts']['atAGlanceFacts']:
             if fact['factLabel'] == 'Date available' and fact['factValue']:
-                listing['availability'] = dateparser.parse(str(fact['factValue']))
+                if fact['factValue'] == 'Available now':
+                    listing['availability'] = datetime.datetime.now()
+                else:
+                    listing['availability'] = dateparser.parse(str(fact['factValue']))
             
         for category in json['data']['property']['homeFacts']['categoryDetails']:
             if category['categoryGroupName'] == 'Rental Facts':
@@ -473,7 +477,7 @@ class HousingBot(Bot):
                 },
                 {
                     'title': 'Location',
-                    'value': listing['where'].capitalize(),
+                    'value': listing['where'].title(),
                     'short': True
                 },
                 {
