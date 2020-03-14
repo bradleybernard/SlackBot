@@ -29,7 +29,7 @@ CraigslistBase.url_templates = url_templates = {
 
 class CraigslistHousingCustom(CraigslistHousing):
 
-    tags = IntEnum('tags', 'rooms sqfeet availability', start=0) 
+    tags = IntEnum('tags', 'rooms sqfeet availability', start=0)
     posting = IntEnum('posting', 'postedtop postedbottom updated', start=0)
 
     def remove_prefix(self, text, prefix):
@@ -37,7 +37,7 @@ class CraigslistHousingCustom(CraigslistHousing):
             return text[len(prefix):]
         return text
 
-    def customize(self, result, detail_soup): 
+    def customize(self, result, detail_soup):
         self.parse_rooms_and_availability(result, detail_soup)
         self.parse_dates_and_times(result, detail_soup)
         self.parse_images(result, detail_soup)
@@ -74,7 +74,7 @@ class CraigslistHousingCustom(CraigslistHousing):
                 result['posted'] = date
             if index == self.posting.updated.value:
                 result['updated'] = date
-    
+
     def parse_images(self, result, detail_soup):
         result.update({'image': None})
         image_info = detail_soup.select('div.swipe-wrap')
@@ -85,7 +85,7 @@ class CraigslistHousingCustom(CraigslistHousing):
 
     def parse_body(self, result, detail_soup):
         result['body'] = self.remove_prefix(detail_soup.select('#postingbody')[0].text.strip(), 'QR Code Link to This Post').strip()
-        
+
     def parse_address(self, result, detail_soup):
         result.update({'gaddress': None, 'gcoords': None})
         lat_long_address = detail_soup.select('p.mapaddress')
@@ -97,7 +97,7 @@ class CraigslistHousingCustom(CraigslistHousing):
         map = detail_soup.find('div', {'id': 'map'})
         if map:
             result['map_accuracy'] = int(map.attrs['data-accuracy'])
-        
+
     def parse_gmaps_link(self, result, link):
         last_slash = link.rfind('/')
         remaining = link[last_slash+1:]
@@ -148,9 +148,9 @@ class HousingBot(Bot):
     def config_setup(self, config):
         self.google_api_key = config['google_api_key']
         self.map_markers = config['map_markers']
-        self.template = config['template']
+        self.template = config['template'].rstrip('\n').lstrip('\n')
         return self.google_api_key
-            
+
     def filename(self):
         return os.path.splitext(os.path.basename(__file__))[0]
 
@@ -209,7 +209,7 @@ class HousingBot(Bot):
                         reply = self.generate_reply(listing)
                         slack_message = self.slack.send_message_to_channel(message=reply, thread_ts=message['ts'])
                         logging.info(f'Notified slack channel of listing')
-        
+
     def fetch_zillow_housing(self, query):
         url = 'https://www.zillow.com/search/GetSearchPageState.htm'
         params = {
@@ -253,7 +253,7 @@ class HousingBot(Bot):
     def fetch_zillow_housing_details(self, listing):
         url = 'https://www.zillow.com/graphql/'
         payload = '{"operationName":"ForRentDoubleScrollFullRenderQuery","variables":{"zpid":' + listing['id'] + ',"contactFormRenderParameter":{"zpid":19596588,"platform":"desktop","isDoubleScroll":true}},"clientVersion":"home-details/5.44.1.0.0.hotfix-2019-5-28.59e2dc6","queryId":"0b39af348a5c57b66a90385dad30bcab"}'
-        
+
         headers = {
             'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3',
             'Accept-Encoding': 'gzip, deflate, br',
@@ -277,7 +277,7 @@ class HousingBot(Bot):
                     listing['availability'] = datetime.datetime.now()
                 else:
                     listing['availability'] = dateparser.parse(str(fact['factValue']))
-            
+
         for category in json['data']['property']['homeFacts']['categoryDetails']:
             if category['categoryGroupName'] == 'Rental Facts':
                 category = category['categories'][0]
@@ -287,7 +287,7 @@ class HousingBot(Bot):
 
         if listing['posted'] == 'N/A':
             listing['posted'] = dateparser.parse(json['data']['property']['timeOnZillow'])
-        
+
         listing['body'] = json['data']['property']['description']
         listing['image'] = json['data']['property']['desktopWebHdpImageLink']
         listing['where'] = json['data']['property']['city']
@@ -350,13 +350,13 @@ class HousingBot(Bot):
         bedrooms = float(listing['bedrooms'])
         bathrooms = float(listing['bathrooms'])
 
-        # bathrooms is zero 
+        # bathrooms is zero
         if math.isclose(bathrooms, 0):
             return price / bedrooms
-        
+
         #price per person = price / ((0.7 * beds) + (0.3 * baths))
         return (price / ((0.7 * bedrooms) + (0.3 * bathrooms)))
-    
+
     def listing_insert_time(self, listing):
         if 'datetime' in listing:
             return int(parser.parse(listing['datetime']).timestamp())
@@ -370,7 +370,7 @@ class HousingBot(Bot):
             return int(listing['posted'].timestamp())
         else:
             return 'N/A'
-        
+
     def listing_availability(self, listing):
         if 'availability' in listing and listing['availability']:
             if listing['availability'] <= datetime.datetime.now():
@@ -409,7 +409,7 @@ class HousingBot(Bot):
         dmap = DecoratedMap(style=road_styles,key=self.google_api_key)
         for marker in self.map_markers:
             dmap.add_marker(AddressMarker(marker['address'], label=marker['label']))
-        
+
         if listing['gaddress'] and listing['map_accuracy'] <= 10:
             dmap.add_marker(AddressMarker(listing['gaddress'], label='1', color='blue'))
         elif listing['geotag']:
@@ -552,7 +552,7 @@ class SQL(object):
         count = cursor.fetchone()[0]
         logging.debug(f'Count for ID = {craigslist_id}: {count}')
         return count
-            
+
     def insert_housing_listing(self, listing):
         insert = ''' INSERT INTO craigslist_housing (craigslist_id, name, url, craigslist_date, created_at) VALUES (?, ?, ?, ?, ?) '''
         cursor = self.connection.cursor()
@@ -560,7 +560,7 @@ class SQL(object):
         self.connection.commit()
         logging.debug(f'Inserting listing: {listing}')
         return cursor.lastrowid
- 
+
 @click.command()
 @click.option('--log-level', default='INFO')
 @click.option('--notify/--no-notify', default=True)
